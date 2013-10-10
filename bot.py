@@ -29,7 +29,10 @@ def eval_arithmetic(string):
   
   while True:
     def mult_fix(match):
-      return str((int(match.group(1)) * int(match.group(3))) if (match.group(2) == "*") else (int(match.group(1)) // int(match.group(3))))
+      try:
+        return str((int(match.group(1)) * int(match.group(3))) if (match.group(2) == "*") else (int(match.group(1)) // int(match.group(3))))
+      except ZeroDivisionError:
+        raise Exception("eval_arithmetic failed with string: "+string)
     mult_out = re.sub(r"(-?\d+)\s*([/\*])\s*(-?\d+)", mult_fix, string)
     if mult_out == string:
       string = mult_out
@@ -61,7 +64,7 @@ while True:
   parts = data[1:].split(":",1)
   info = parts[0].split(" ")
   msg = parts[1]
-  cmd = (info[1] if (len(info) > 0) else "")
+  cmd = (info[1] if (len(info) > 1) else "")
   user = info[0].split("!")[0]
     
   if cmd == "001":
@@ -77,8 +80,10 @@ while True:
         return "0"
       if (sides < 1):
         return "0"
-      if (dice > 100):
-        return "(more than 100 dice is too many)"
+      if (dice > 30):
+        return "(more than 30 dice is too many)"
+      if (sides > 100000):
+        return "(more than 100000 sides is too many)"
       return "("+"+".join([str(rand.randrange(1,sides+1)) for x in range(dice)])+")"
     output = [bot_command]
     roll = re.sub(r"(\d*)[Dd](\d+)", roll_repl, bot_command)
@@ -92,5 +97,8 @@ while True:
       else:
         raise e
     else:
+      output[len(output)-1] = chr(2)+output[len(output)-1]+chr(2)
+    
+    if (len(output) > 1):
       send("PRIVMSG #xkcd-qrpg "+user+": "+" = ".join(output)+"\r\n")
     
