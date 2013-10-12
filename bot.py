@@ -114,17 +114,19 @@ while True:
       if rolled != subbed:
         output.append(rolled)
     
-      try:
-        arithmeticked = str(eval_arithmetic(rolled))
-        if arithmeticked != rolled:
-          output.append(arithmeticked)
-      except Exception as e:
-        if (str(e).find("eval_arithmetic failed") != -1):
-          print(str(e))
-        else:
-          raise e
-      else:
-        output[len(output)-1] = chr(2)+output[len(output)-1]+chr(2)
+      def arith_repl(match):
+        try:
+          return str(eval_arithmetic(match.group(0)))
+        except Exception as e:
+          if (str(e).find("eval_arithmetic failed") != -1):
+            print(str(e))
+          else:
+            raise e
+          return match.group(0)
+          
+      arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d\-)]", arith_repl, rolled)
+      if arithmeticked != rolled:
+        output.append(chr(2)+arithmeticked+chr(2))
       
       if (len(output) > 1):
         send("PRIVMSG #xkcd-qrpg "+user+": "+" = ".join(output)+"\r\n")
