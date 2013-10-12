@@ -83,9 +83,11 @@ while True:
       subs[user][def_match.group(1)] = def_match.group(2)
       send("PRIVMSG #xkcd-qrpg "+user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'\r\n")
     elif undef_match:
-      if user in subs:
+      if user in subs and undef_match.group(1) in subs[user]:
         del subs[user][undef_match.group(1)]
-      send("PRIVMSG #xkcd-qrpg "+user+": undefined '"+undef_match.group(1)+"'\r\n")
+        send("PRIVMSG #xkcd-qrpg "+user+": undefined '"+undef_match.group(1)+"'\r\n")
+      else:
+        send("PRIVMSG #xkcd-qrpg "+user+": '"+undef_match.group(1)+"' wasn't defined\r\n")
     else:
       output = [bot_command]
     
