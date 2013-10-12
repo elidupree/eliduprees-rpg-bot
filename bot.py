@@ -103,7 +103,7 @@ while True:
         if (dice < 1):
           return "0"
         if (sides < 1):
-          return "0"
+          return match.group(0)
         if (dice > 30):
           return "(more than 30 dice is too many)"
         if (sides > 100000):
@@ -124,7 +124,7 @@ while True:
             raise e
           return match.group(0)
           
-      arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d\-)]", arith_repl, rolled)
+      arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d)]", arith_repl, rolled)
       if arithmeticked != rolled:
         output.append(chr(2)+arithmeticked+chr(2))
       
