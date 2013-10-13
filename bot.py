@@ -3,10 +3,12 @@
 import socket
 import re
 import random
+import time
 rand = random.SystemRandom()
 
 irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 irc.connect(("irc.foonetic.net", 6667))
+irc.setblocking(0)
 
 def send(msg):
   print("Sending: "+msg)
@@ -54,9 +56,8 @@ def eval_arithmetic(string):
     raise Exception("eval_arithmetic failed with string: "+string)
   
 subs = {}
-  
-while True:
-  data = irc.recv(4096)
+
+def receive_irc(data):
   print("Received: "+data)
   
   if data[0:4] == "PING":
@@ -132,4 +133,12 @@ while True:
       
       if (len(output) > 1):
         send("PRIVMSG #xkcd-qrpg "+user+": "+" = ".join(output)+"\r\n")
-    
+  
+while True:
+  try:
+    data = irc.recv(4096)
+    receive_irc(data)
+  except socket.error:
+    False
+  time.sleep(0.01)
+
