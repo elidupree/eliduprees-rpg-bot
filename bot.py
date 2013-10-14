@@ -17,6 +17,7 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 nick = "EliRPGBot"
 channel = "#xkcd-qrpg"
+mirc_colors = ['#ffffff', '#000000', '#000080', '#008000', '#ff0000', '#804040', '#8000ff', '#808000', '#ffff00', '#00ff00', '#008080', '#00ffff', '#0000ff', '#ff00ff', '#808080', '#c0c0c0']
 
 def eval_arithmetic(string):
   def eval_match(match):
@@ -94,6 +95,9 @@ class bot_control_window(QtGui.QWidget):
     for i in range(0,15):
       name = QtGui.QLineEdit()
       text = QtGui.QLineEdit()
+      name.setText("NAME")
+      name.setStyleSheet('color: '+mirc_colors[i+1])
+      text.setStyleSheet('color: '+mirc_colors[i+1])
       text.character_index = i
       text.returnPressed.connect(self.character_enter)
       self.character_slots.append((name, text))
