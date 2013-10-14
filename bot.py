@@ -83,17 +83,21 @@ class bot_control_window(QtGui.QWidget):
     vbox.addLayout(grid)
     vbox.addStretch(1)
     
+    grid.setColumnStretch(1,1)
+    
     grid.addWidget(QtGui.QLabel("Command"), 0, 0)
     grid.addWidget(self.command_edit, 0, 1)
     grid.addWidget(QtGui.QLabel("GM"), 1, 0)
     grid.addWidget(self.gm_edit, 1, 1)
     
-    for i in range(2,6):
+    for i in range(0,8):
       name = QtGui.QLineEdit()
       text = QtGui.QLineEdit()
+      text.character_index = i
+      text.returnPressed.connect(self.character_enter)
       self.character_slots.append((name, text))
-      grid.addWidget(name, i, 0)
-      grid.addWidget(text, i, 1)
+      grid.addWidget(name, i+2, 0)
+      grid.addWidget(text, i+2, 1)
     
     self.setLayout(vbox)
     self.setGeometry(100,100,350,500)
@@ -101,8 +105,11 @@ class bot_control_window(QtGui.QWidget):
     self.show()
   
   def gm_enter(self):
-    self.channel_message(chr(2)+"GM> "+chr(2)+style_msg(str(self.gm_edit.text()))+"\r\n")
+    self.channel_message(chr(2)+"[GM] "+chr(2)+style_msg(str(self.gm_edit.text()))+"\r\n")
     self.gm_edit.setText('')
+  def character_enter(self):
+    self.channel_message("["+str(self.character_slots[self.sender().character_index][0].text())+"] "+style_msg(str(self.sender().text()))+"\r\n")
+    self.sender().setText('')
   
   def irc_receive_event(self):
     while not self.irc.atEnd():
