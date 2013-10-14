@@ -4,20 +4,18 @@ import socket
 import re
 import random
 import time
+import sys
 rand = random.SystemRandom()
+from PyQt4 import QtCore, QtGui, QtNetwork
 
-irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-irc.connect(("irc.foonetic.net", 6667))
-irc.setblocking(0)
+import signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-def send(msg):
-  print("Sending: "+msg)
-  irc.send(msg)
 
-inited = False
+#irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#irc.connect(("irc.foonetic.net", 6667))
+#irc.setblocking(0)
 nick = "EliRPGBot"
-send("USER "+nick+" "+nick+" "+nick+" :"+nick+"\r\n")
-send("NICK "+nick+"\r\n")
 
 def eval_arithmetic(string):
   def eval_match(match):
@@ -54,91 +52,149 @@ def eval_arithmetic(string):
     return int(string)
   except ValueError:
     raise Exception("eval_arithmetic failed with string: "+string)
-  
-subs = {}
 
-def receive_irc(data):
-  print("Received: "+data)
+def style_msg(msg):
+  def bold_convert(match):
+    return chr(2)+match.group(1)+chr(2)
+  return re.sub(r"b\((.*)\)", bold_convert, msg)
+
+class bot_control_window(QtGui.QWidget):
+  subs = {}
+  character_slots = []
+  inited = False
   
-  if data[0:4] == "PING":
-    send("PONG "+data[5:]+"\r\n")
+  def __init__(self):
+    super(bot_control_window, self).__init__()
+    self.initUI()
+  
+  def initUI(self):
+    self.irc = QtNetwork.QTcpSocket()
+    self.irc.connectToHost("irc.foonetic.net", 6667)
+    self.irc.waitForConnected(-1)
+    self.irc.readyRead.connect(self.irc_receive_event)
+    self.irc_send("USER "+nick+" "+nick+" "+nick+" :"+nick+"\r\n")
+    self.irc_send("NICK "+nick+"\r\n")
+
+    self.command_edit = QtGui.QLineEdit()
+    self.gm_edit = QtGui.QLineEdit()
+    self.gm_edit.returnPressed.connect(self.gm_enter)
+    grid = QtGui.QGridLayout()
+    vbox = QtGui.QVBoxLayout()
+    vbox.addLayout(grid)
+    vbox.addStretch(1)
     
-  parts = data[1:].split(":",1)
-  info = parts[0].split(" ")
-  msg = parts[1]
-  cmd = (info[1] if (len(info) > 1) else "")
-  user = info[0].split("!")[0]
+    grid.addWidget(QtGui.QLabel("Command"), 0, 0)
+    grid.addWidget(self.command_edit, 0, 1)
+    grid.addWidget(QtGui.QLabel("GM"), 1, 0)
+    grid.addWidget(self.gm_edit, 1, 1)
     
-  if cmd == "001":
-    send("MODE "+nick+" +B\r\n")
-    send("JOIN #xkcd-qrpg\r\n")
-    inited = True
-  if (cmd == "PRIVMSG") and (info[2] == "#xkcd-qrpg") and (msg[0] == "!"):
-    bot_command = msg[1:].strip()
+    for i in range(2,6):
+      name = QtGui.QLineEdit()
+      text = QtGui.QLineEdit()
+      self.character_slots.append((name, text))
+      grid.addWidget(name, i, 0)
+      grid.addWidget(text, i, 1)
     
-    def_match = re.match(r"def\s+([^\s]+)\s+(.*)", bot_command)
-    undef_match = re.match(r"undef\s+([^\s]+)", bot_command)
-    if def_match:
-      if user not in subs:
-        subs[user] = {}
-      subs[user][def_match.group(1)] = def_match.group(2)
-      send("PRIVMSG #xkcd-qrpg "+user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'\r\n")
-    elif undef_match:
-      if user in subs and undef_match.group(1) in subs[user]:
-        del subs[user][undef_match.group(1)]
-        send("PRIVMSG #xkcd-qrpg "+user+": undefined '"+undef_match.group(1)+"'\r\n")
+    self.setLayout(vbox)
+    self.setGeometry(100,100,350,500)
+    self.setWindowTitle("Eli's RPG Bot")
+    self.show()
+  
+  def gm_enter(self):
+    self.channel_message(chr(2)+"GM> "+chr(2)+style_msg(str(self.gm_edit.text()))+"\r\n")
+    self.gm_edit.setText('')
+  
+  def irc_receive_event(self):
+    while not self.irc.atEnd():
+      self.irc_receive(self.irc.readLine(4096))
+      
+  def channel_message(self, msg):
+    self.irc_send("PRIVMSG #xkcd-qrpg "+msg)
+  
+  def irc_send(self, msg):
+    print("Sending: "+msg)
+    #irc.send(msg)
+    self.irc.write(msg)
+    
+  def irc_receive(self, data):
+    print("Received: "+data)
+  
+    if data[0:4] == "PING":
+      self.irc_send("PONG "+data[5:]+"\r\n")
+    
+    parts = data[1:].split(":",1)
+    info = parts[0].split(" ")
+    msg = (parts[1] if (len(parts) > 1) else "")
+    cmd = (info[1] if (len(info) > 1) else "")
+    user = info[0].split("!")[0]
+    
+    if cmd == "001":
+      self.irc_send("MODE "+nick+" +B\r\n")
+      self.irc_send("JOIN #xkcd-qrpg\r\n")
+      self.inited = True
+    if (cmd == "PRIVMSG") and (info[2] == "#xkcd-qrpg") and (msg[0] == "!"):
+      bot_command = msg[1:].strip()
+    
+      def_match = re.match(r"def\s+([^\s]+)\s+(.*)", bot_command)
+      undef_match = re.match(r"undef\s+([^\s]+)", bot_command)
+      if def_match:
+        if user not in self.subs:
+          self.subs[user] = {}
+        self.subs[user][def_match.group(1)] = def_match.group(2)
+        self.channel_message(user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'\r\n")
+      elif undef_match:
+        if user in self.subs and undef_match.group(1) in self.subs[user]:
+          del self.subs[user][undef_match.group(1)]
+          self.channel_message(user+": undefined '"+undef_match.group(1)+"'\r\n")
+        else:
+          self.channel_message(user+": '"+undef_match.group(1)+"' wasn't defined\r\n")
       else:
-        send("PRIVMSG #xkcd-qrpg "+user+": '"+undef_match.group(1)+"' wasn't defined\r\n")
-    else:
-      output = [bot_command]
+        output = [bot_command]
     
-      subbed = bot_command
-      if user in subs:
-        for key in subs[user]:
-          subbed = subbed.replace(key, subs[user][key])
+        subbed = bot_command
+        if user in self.subs:
+          for key in self.subs[user]:
+            subbed = subbed.replace(key, self.subs[user][key])
       
-      if subbed != bot_command:
-        output.append(subbed)
+        if subbed != bot_command:
+          output.append(subbed)
       
-      def roll_repl(match):
-        dice = (1 if (match.group(1) == "") else int(match.group(1)))
-        sides = int(match.group(2))
-        if (dice < 1):
-          return "0"
-        if (sides < 1):
-          return match.group(0)
-        if (dice > 30):
-          return "(more than 30 dice is too many)"
-        if (sides > 100000):
-          return "(more than 100000 sides is too many)"
-        return "("+"+".join([str(rand.randrange(1,sides+1)) for x in range(dice)])+")"
+        def roll_repl(match):
+          dice = (1 if (match.group(1) == "") else int(match.group(1)))
+          sides = int(match.group(2))
+          if (dice < 1):
+            return "0"
+          if (sides < 1):
+            return match.group(0)
+          if (dice > 30):
+            return "(more than 30 dice is too many)"
+          if (sides > 100000):
+            return "(more than 100000 sides is too many)"
+          return "("+"+".join([str(rand.randrange(1,sides+1)) for x in range(dice)])+")"
       
-      rolled = re.sub(r"(\d*)[Dd](\d+)", roll_repl, subbed)
-      if rolled != subbed:
-        output.append(rolled)
+        rolled = re.sub(r"(\d*)[Dd](\d+)", roll_repl, subbed)
+        if rolled != subbed:
+          output.append(rolled)
     
-      def arith_repl(match):
-        try:
-          return str(eval_arithmetic(match.group(0)))
-        except Exception as e:
-          if (str(e).find("eval_arithmetic failed") != -1):
-            print(str(e))
-          else:
-            raise e
-          return match.group(0)
-          
-      arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d)]", arith_repl, rolled)
-      if arithmeticked != rolled:
-        output.append(chr(2)+arithmeticked+chr(2))
-      
-      if (len(output) > 1):
-        send("PRIVMSG #xkcd-qrpg "+user+": "+" = ".join(output)+"\r\n")
-  
-while True:
-  try:
-    data = irc.recv(4096)
-    receive_irc(data)
-  except socket.error:
-    False
-  time.sleep(0.01)
+        def arith_repl(match):
+          try:
+            return str(eval_arithmetic(match.group(0)))
+          except Exception as e:
+            if (str(e).find("eval_arithmetic failed") != -1):
+              print(str(e))
+            else:
+              raise e
+            return match.group(0)
+            
+        arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d)]", arith_repl, rolled)
+        if arithmeticked != rolled:
+          output.append(chr(2)+arithmeticked+chr(2))
+        
+        if (len(output) > 1):
+          self.channel_message(user+": "+" = ".join(output)+"\r\n")
+        
+        
+app = QtGui.QApplication(sys.argv)
+control_window = bot_control_window()
+sys.exit(app.exec_())
 
