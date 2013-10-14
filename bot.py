@@ -85,24 +85,26 @@ class bot_control_window(QtGui.QWidget):
     vbox.addLayout(grid)
     vbox.addStretch(1)
     
-    grid.setColumnStretch(1,1)
+    grid.setColumnStretch(2,1)
     
-    grid.addWidget(QtGui.QLabel("Command"), 0, 0)
-    grid.addWidget(self.command_edit, 0, 1)
-    grid.addWidget(QtGui.QLabel("GM"), 1, 0)
-    grid.addWidget(self.gm_edit, 1, 1)
+    grid.addWidget(QtGui.QLabel("Command"), 0, 1)
+    grid.addWidget(self.command_edit, 0, 2)
+    grid.addWidget(QtGui.QLabel("GM"), 1, 1)
+    grid.addWidget(self.gm_edit, 1, 2)
     
     for i in range(0,15):
       name = QtGui.QLineEdit()
       text = QtGui.QLineEdit()
       name.setText("NAME")
+      name.setFixedWidth(90)
       name.setStyleSheet('color: '+mirc_colors[i+1])
       text.setStyleSheet('color: '+mirc_colors[i+1])
       text.character_index = i
       text.returnPressed.connect(self.character_enter)
       self.character_slots.append((name, text))
-      grid.addWidget(name, i+2, 0)
-      grid.addWidget(text, i+2, 1)
+      grid.addWidget(QtGui.QLabel(str(i+1)), i+2, 0)
+      grid.addWidget(name, i+2, 1)
+      grid.addWidget(text, i+2, 2)
     
     self.setLayout(vbox)
     self.setGeometry(100,100,350,500)
