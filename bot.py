@@ -15,9 +15,6 @@ import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
-#irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#irc.connect(("irc.foonetic.net", 6667))
-#irc.setblocking(0)
 nick = "EliRPGBot"
 
 def eval_arithmetic(string):
