@@ -90,7 +90,7 @@ class bot_control_window(QtGui.QWidget):
     grid.addWidget(QtGui.QLabel("GM"), 1, 0)
     grid.addWidget(self.gm_edit, 1, 1)
     
-    for i in range(0,13):
+    for i in range(0,15):
       name = QtGui.QLineEdit()
       text = QtGui.QLineEdit()
       text.character_index = i
@@ -105,12 +105,11 @@ class bot_control_window(QtGui.QWidget):
     self.show()
   
   def gm_enter(self):
-    self.channel_message(chr(2)+"[GM] "+chr(2)+style_msg(str(self.gm_edit.text()))+"\r\n")
+    self.channel_message(chr(2)+chr(3)+"0,1[GM] "+chr(2)+style_msg(str(self.gm_edit.text()))+"\r\n")
     self.gm_edit.setText('')
   def character_enter(self):
     i = self.sender().character_index
-    # chr(3)+chr(i+63)+
-    self.channel_message("["+str(self.character_slots[i][0].text())+"] "+style_msg(str(self.sender().text()))+"\r\n")
+    self.channel_message(chr(3)+str(i+1)+"["+str(self.character_slots[i][0].text())+"] "+style_msg(str(self.sender().text()))+"\r\n")
     self.sender().setText('')
   
   def irc_receive_event(self):
