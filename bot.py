@@ -18,6 +18,7 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 nick = "EliRPGBot"
 channel = "#xkcd-qrpg"
 mirc_colors = ['#ffffff', '#000000', '#000080', '#008000', '#ff0000', '#804040', '#8000ff', '#808000', '#ffff00', '#00ff00', '#008080', '#00ffff', '#0000ff', '#ff00ff', '#808080', '#c0c0c0']
+legit_colors = [3,4,5,6,7,9,10,12,13,15]
 
 def eval_arithmetic(string):
   def eval_match(match):
@@ -92,17 +93,17 @@ class bot_control_window(QtGui.QWidget):
     grid.addWidget(QtGui.QLabel("GM"), 1, 1)
     grid.addWidget(self.gm_edit, 1, 2)
     
-    for i in range(0,15):
+    for i in range(0,10):
       name = QtGui.QLineEdit()
       text = QtGui.QLineEdit()
       name.setText("NAME")
       name.setFixedWidth(90)
-      name.setStyleSheet('color: '+mirc_colors[i+1])
-      text.setStyleSheet('color: '+mirc_colors[i+1])
+      name.setStyleSheet('color: '+mirc_colors[legit_colors[i]])
+      text.setStyleSheet('color: '+mirc_colors[legit_colors[i]])
       text.character_index = i
       text.returnPressed.connect(self.character_enter)
       self.character_slots.append((name, text))
-      grid.addWidget(QtGui.QLabel(str(i+1)), i+2, 0)
+      grid.addWidget(QtGui.QLabel(str(legit_colors[i])), i+2, 0)
       grid.addWidget(name, i+2, 1)
       grid.addWidget(text, i+2, 2)
     
@@ -112,11 +113,12 @@ class bot_control_window(QtGui.QWidget):
     self.show()
   
   def gm_enter(self):
-    self.channel_message(chr(2)+chr(3)+"0,1[GM] "+chr(2)+style_msg(str(self.gm_edit.text()))+"\r\n")
+    #+chr(3)+"0,1" .. +chr(2)
+    self.channel_message(chr(2)+"[GM] "+style_msg(str(self.gm_edit.text()))+"\r\n")
     self.gm_edit.setText('')
   def character_enter(self):
     i = self.sender().character_index
-    self.channel_message(chr(3)+str(i+1)+"["+str(self.character_slots[i][0].text())+"] "+style_msg(str(self.sender().text()))+"\r\n")
+    self.channel_message(chr(3)+str(legit_colors[i])+"["+str(self.character_slots[i][0].text())+"] "+style_msg(str(self.sender().text()))+"\r\n")
     self.sender().setText('')
   
   def irc_receive_event(self):
