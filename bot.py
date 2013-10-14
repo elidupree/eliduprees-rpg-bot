@@ -16,6 +16,7 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 nick = "EliRPGBot"
+channel = "#xkcd-qrpg"
 
 def eval_arithmetic(string):
   def eval_match(match):
@@ -117,7 +118,7 @@ class bot_control_window(QtGui.QWidget):
       self.irc_receive(self.irc.readLine(4096))
       
   def channel_message(self, msg):
-    self.irc_send("PRIVMSG #xkcd-qrpg "+msg)
+    self.irc_send("PRIVMSG "+channel+" "+msg)
   
   def irc_send(self, msg):
     print("Sending: "+msg)
@@ -138,9 +139,9 @@ class bot_control_window(QtGui.QWidget):
     
     if cmd == "001":
       self.irc_send("MODE "+nick+" +B\r\n")
-      self.irc_send("JOIN #xkcd-qrpg\r\n")
+      self.irc_send("JOIN "+channel+"\r\n")
       self.inited = True
-    if (cmd == "PRIVMSG") and (info[2] == "#xkcd-qrpg") and (msg[0] == "!"):
+    if (cmd == "PRIVMSG") and (info[2] == channel) and (msg[0] == "!"):
       bot_command = msg[1:].strip()
     
       def_match = re.match(r"def\s+([^\s]+)\s+(.*)", bot_command)
