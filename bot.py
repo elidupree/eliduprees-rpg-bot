@@ -10,6 +10,7 @@ import time
 import sys
 rand = random.SystemRandom()
 from PyQt4 import QtCore, QtGui, QtNetwork
+from collections import deque
 
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -65,6 +66,8 @@ class bot_control_window(QtGui.QWidget):
   subs = {}
   character_slots = []
   inited = False
+  message_debt = 0
+  send_queue = deque()
   
   def __init__(self):
     super(bot_control_window, self).__init__()
@@ -79,6 +82,7 @@ class bot_control_window(QtGui.QWidget):
     self.irc_send("NICK "+nick+"\r\n")
 
     self.command_edit = QtGui.QLineEdit()
+    self.command_edit.returnPressed.connect(self.command_enter)
     self.gm_edit = QtGui.QLineEdit()
     self.gm_edit.returnPressed.connect(self.gm_enter)
     grid = QtGui.QGridLayout()
@@ -112,13 +116,18 @@ class bot_control_window(QtGui.QWidget):
     self.setWindowTitle("Eli's RPG Bot")
     self.show()
   
+  def command_enter(self):
+    if str(self.command_edit.text()) == "clear":
+      self.send_queue.clear()
+    self.command_edit.setText('')
+    
   def gm_enter(self):
     #+chr(3)+"0,1" .. +chr(2)
-    self.channel_message(chr(2)+"[GM] "+style_msg(str(self.gm_edit.text()))+"\r\n")
+    self.channel_message(chr(2)+"[GM] "+style_msg(str(self.gm_edit.text())))
     self.gm_edit.setText('')
   def character_enter(self):
     i = self.sender().character_index
-    self.channel_message(chr(3)+str(legit_colors[i])+"["+str(self.character_slots[i][0].text())+"] "+style_msg(str(self.sender().text()))+"\r\n")
+    self.channel_message(chr(3)+str(legit_colors[i])+"["+str(self.character_slots[i][0].text())+"] "+style_msg(str(self.sender().text())))
     self.sender().setText('')
   
   def irc_receive_event(self):
@@ -126,18 +135,35 @@ class bot_control_window(QtGui.QWidget):
       self.irc_receive(self.irc.readLine(4096))
       
   def channel_message(self, msg):
-    self.irc_send("PRIVMSG "+channel+" "+msg)
+    self.irc_send("PRIVMSG "+channel+" :"+msg+"\r\n")
   
   def irc_send(self, msg):
+    print("Queueing: "+msg)
+    if self.message_debt < 3: # rfc allows up to 5; reserving one to respond to pings and one to play it safe
+      self.irc_send_immediate(msg)
+    else:
+      self.send_queue.append(msg)
+    
+  def message_paid_off(self):
+    self.message_debt = self.message_debt - 1
+    if self.message_debt >= 1:
+      QtCore.QTimer.singleShot(2000, self.message_paid_off)
+    if len(self.send_queue) > 0:
+      self.irc_send_immediate(self.send_queue.popleft())
+    
+  def irc_send_immediate(self, msg):
+    self.message_debt = self.message_debt + 1
     print("Sending: "+msg)
-    #irc.send(msg)
     self.irc.write(msg)
+    if self.message_debt == 1:
+      QtCore.QTimer.singleShot(2000, self.message_paid_off)
+  
     
   def irc_receive(self, data):
     print("Received: "+data)
   
     if data[0:4] == "PING":
-      self.irc_send("PONG "+data[5:]+"\r\n")
+      self.irc_send_immediate("PONG "+data[5:]+"\r\n")
     
     parts = data[1:].split(":",1)
     info = parts[0].split(" ")
@@ -158,13 +184,13 @@ class bot_control_window(QtGui.QWidget):
         if user not in self.subs:
           self.subs[user] = {}
         self.subs[user][def_match.group(1)] = def_match.group(2)
-        self.channel_message(user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'\r\n")
+        self.channel_message(user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'")
       elif undef_match:
         if user in self.subs and undef_match.group(1) in self.subs[user]:
           del self.subs[user][undef_match.group(1)]
-          self.channel_message(user+": undefined '"+undef_match.group(1)+"'\r\n")
+          self.channel_message(user+": undefined '"+undef_match.group(1)+"'")
         else:
-          self.channel_message(user+": '"+undef_match.group(1)+"' wasn't defined\r\n")
+          self.channel_message(user+": '"+undef_match.group(1)+"' wasn't defined")
       else:
         output = [bot_command]
     
@@ -208,7 +234,7 @@ class bot_control_window(QtGui.QWidget):
           output.append(chr(2)+arithmeticked+chr(2))
         
         if (len(output) > 1):
-          self.channel_message(user+": "+" = ".join(output)+"\r\n")
+          self.channel_message(user+": "+" = ".join(output))
         
         
 app = QtGui.QApplication(sys.argv)
