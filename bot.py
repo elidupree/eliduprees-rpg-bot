@@ -117,8 +117,12 @@ class bot_control_window(QtGui.QWidget):
     self.show()
   
   def command_enter(self):
-    if str(self.command_edit.text()) == "clear":
+    cmd = str(self.command_edit.text())
+    if cmd == "clear":
       self.send_queue.clear()
+    if cmd == "flood safety test":
+      for i in range(0,20):
+        self.channel_message("flood safety test")
     self.command_edit.setText('')
     
   def gm_enter(self):
