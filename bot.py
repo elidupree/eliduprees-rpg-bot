@@ -78,8 +78,8 @@ class bot_control_window(QtGui.QWidget):
     self.irc.connectToHost("irc.foonetic.net", 6667)
     self.irc.waitForConnected(-1)
     self.irc.readyRead.connect(self.irc_receive_event)
-    self.irc_send("USER "+nick+" "+nick+" "+nick+" :"+nick+"\r\n")
-    self.irc_send("NICK "+nick+"\r\n")
+    self.irc_send("USER "+nick+" "+nick+" "+nick+" :"+nick)
+    self.irc_send("NICK "+nick)
 
     self.command_edit = QtGui.QLineEdit()
     self.command_edit.returnPressed.connect(self.command_enter)
@@ -139,7 +139,7 @@ class bot_control_window(QtGui.QWidget):
       self.irc_receive(self.irc.readLine(4096))
       
   def channel_message(self, msg):
-    self.irc_send("PRIVMSG "+channel+" :"+msg+"\r\n")
+    self.irc_send("PRIVMSG "+channel+" :"+msg)
   
   def irc_send(self, msg):
     print("Queueing: "+msg)
@@ -158,7 +158,7 @@ class bot_control_window(QtGui.QWidget):
   def irc_send_immediate(self, msg):
     self.message_debt = self.message_debt + 1
     print("Sending: "+msg)
-    self.irc.write(msg)
+    self.irc.write(msg+"\r\n")
     if self.message_debt == 1:
       QtCore.QTimer.singleShot(2000, self.message_paid_off)
   
@@ -167,7 +167,7 @@ class bot_control_window(QtGui.QWidget):
     print("Received: "+data)
   
     if data[0:4] == "PING":
-      self.irc_send_immediate("PONG "+data[5:]+"\r\n")
+      self.irc_send_immediate("PONG "+data[5:])
     
     parts = data[1:].split(":",1)
     info = parts[0].split(" ")
@@ -176,8 +176,8 @@ class bot_control_window(QtGui.QWidget):
     user = info[0].split("!")[0]
     
     if cmd == "001":
-      self.irc_send("MODE "+nick+" +B\r\n")
-      self.irc_send("JOIN "+channel+"\r\n")
+      self.irc_send("MODE "+nick+" +B")
+      self.irc_send("JOIN "+channel)
       self.inited = True
     if (cmd == "PRIVMSG") and (info[2] == channel) and (msg[0] == "!"):
       bot_command = msg[1:].strip()
