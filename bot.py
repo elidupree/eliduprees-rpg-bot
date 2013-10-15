@@ -152,7 +152,7 @@ class bot_control_window(QtGui.QWidget):
     self.message_debt = self.message_debt - 1
     if self.message_debt >= 1:
       QtCore.QTimer.singleShot(2000, self.message_paid_off)
-    if len(self.send_queue) > 0:
+    if (self.message_debt < 3) and (len(self.send_queue) > 0):
       self.irc_send_immediate(self.send_queue.popleft())
     
   def irc_send_immediate(self, msg):
