@@ -11,6 +11,7 @@ import sys
 rand = random.SystemRandom()
 from PyQt4 import QtCore, QtGui, QtNetwork
 from collections import deque
+import pickle
 
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -63,7 +64,6 @@ def style_msg(msg):
   return re.sub(r"b\((.*)\)", bold_convert, msg)
 
 class bot_control_window(QtGui.QWidget):
-  subs = {}
   character_slots = []
   inited = False
   message_debt = 0
@@ -71,6 +71,10 @@ class bot_control_window(QtGui.QWidget):
   
   def __init__(self):
     super(bot_control_window, self).__init__()
+    try:
+      self.subs = pickle.load(open("remembered_substitutions", "rb"))
+    except:
+      self.subs = {}
     self.initUI()
   
   def initUI(self):
@@ -189,12 +193,14 @@ class bot_control_window(QtGui.QWidget):
           self.subs[user] = {}
         self.subs[user][def_match.group(1)] = def_match.group(2)
         self.channel_message(user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'")
+        pickle.dump(self.subs, open("remembered_substitutions", "wb"))
       elif undef_match:
         if user in self.subs and undef_match.group(1) in self.subs[user]:
           del self.subs[user][undef_match.group(1)]
           self.channel_message(user+": undefined '"+undef_match.group(1)+"'")
         else:
           self.channel_message(user+": '"+undef_match.group(1)+"' wasn't defined")
+        pickle.dump(self.subs, open("remembered_substitutions", "wb"))
       else:
         output = [bot_command]
     
