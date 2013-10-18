@@ -17,7 +17,8 @@ import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
-nick = "EliRPGBot"
+bot_nick = "EliRPGBot"
+owner_nick = "EliDupree"
 channel = "#xkcd-qrpg"
 mirc_colors = ['#ffffff', '#000000', '#000080', '#008000', '#ff0000', '#804040', '#8000ff', '#808000', '#ffff00', '#00ff00', '#008080', '#00ffff', '#0000ff', '#ff00ff', '#808080', '#c0c0c0']
 legit_colors = [3,4,5,6,7,9,10,12,13,15]
@@ -82,8 +83,8 @@ class bot_control_window(QtGui.QWidget):
     self.irc.connectToHost("irc.foonetic.net", 6667)
     self.irc.waitForConnected(-1)
     self.irc.readyRead.connect(self.irc_receive_event)
-    self.irc_send("USER "+nick+" "+nick+" "+nick+" :"+nick)
-    self.irc_send("NICK "+nick)
+    self.irc_send("USER "+bot_nick+" "+bot_nick+" "+bot_nick+" :"+bot_nick)
+    self.irc_send("NICK "+bot_nick)
 
     self.command_edit = QtGui.QLineEdit()
     self.command_edit.returnPressed.connect(self.command_enter)
@@ -152,8 +153,13 @@ class bot_control_window(QtGui.QWidget):
     while not self.irc.atEnd():
       self.irc_receive(self.irc.readLine(4096))
       
+  def privmsg(self, target, msg):
+    self.irc_send("PRIVMSG "+target+" :"+msg)
+    if (target != channel) and (target != owner_nick):
+      self.privmsg(owner_nick, "[sent to "+target+"] "+msg)
+    
   def channel_message(self, msg):
-    self.irc_send("PRIVMSG "+channel+" :"+msg)
+    self.privmsg(channel, msg)
   
   def irc_send(self, msg):
     print("Queueing: "+msg)
@@ -190,31 +196,35 @@ class bot_control_window(QtGui.QWidget):
     user = info[0].split("!")[0]
     
     if cmd == "001":
-      self.irc_send("MODE "+nick+" +B")
+      self.irc_send("MODE "+bot_nick+" +B")
       self.irc_send("JOIN "+channel)
       self.inited = True
     if (cmd == "PRIVMSG") and (info[2] == channel) and (msg[0] == "!"):
-      bot_command = msg[1:].strip()
-    
-      def_match = re.match(r"def\s+([^\s]+)\s+(.*)", bot_command)
-      undef_match = re.match(r"undef\s+([^\s]+)", bot_command)
-      if def_match:
-        if user not in self.subs:
-          self.subs[user] = {}
-        self.subs[user][def_match.group(1)] = def_match.group(2)
-        self.channel_message(user+": defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'")
-        pickle.dump(self.subs, open("remembered_substitutions", "wb"))
-      elif undef_match:
-        if user in self.subs and undef_match.group(1) in self.subs[user]:
-          del self.subs[user][undef_match.group(1)]
-          self.channel_message(user+": undefined '"+undef_match.group(1)+"'")
-        else:
-          self.channel_message(user+": '"+undef_match.group(1)+"' wasn't defined")
-        pickle.dump(self.subs, open("remembered_substitutions", "wb"))
+      self.do_command(msg[1:].strip(), user, channel)
+    if (cmd == "PRIVMSG") and (info[2] == bot_nick):
+      self.do_command(msg.strip(), user, user)
+      
+  def do_command(self, msg, user, target):
+    indicator_prefix = (user+": " if target == channel else "")
+    def_match = re.match(r"def\s+([^\s]+)\s+(.*)", msg)
+    undef_match = re.match(r"undef\s+([^\s]+)", msg)
+    if def_match:
+      if user not in self.subs:
+        self.subs[user] = {}
+      self.subs[user][def_match.group(1)] = def_match.group(2)
+      self.privmsg(target, indicator_prefix+"defined '"+def_match.group(1)+"' as '"+def_match.group(2)+"'")
+      pickle.dump(self.subs, open("remembered_substitutions", "wb"))
+    elif undef_match:
+      if user in self.subs and undef_match.group(1) in self.subs[user]:
+        del self.subs[user][undef_match.group(1)]
+        self.privmsg(target, indicator_prefix+"undefined '"+undef_match.group(1)+"'")
       else:
-        output = self.interpret_msg(bot_command, user)
-        if (len(output) > 1):
-          self.channel_message(user+": "+" = ".join(output))
+        self.privmsg(target, indicator_prefix+"'"+undef_match.group(1)+"' wasn't defined")
+      pickle.dump(self.subs, open("remembered_substitutions", "wb"))
+    else:
+      output = self.interpret_msg(msg, user)
+      if (len(output) > 1):
+        self.privmsg(target, indicator_prefix+" = ".join(output))
         
   def interpret_msg(self, msg, user):
     output = [msg]
