@@ -87,6 +87,7 @@ class bot_control_window(QtGui.QWidget):
 
     self.command_edit = QtGui.QLineEdit()
     self.command_edit.returnPressed.connect(self.command_enter)
+    self.command_output = QtGui.QLabel()
     self.gm_edit = QtGui.QLineEdit()
     self.gm_edit.returnPressed.connect(self.gm_enter)
     grid = QtGui.QGridLayout()
@@ -96,10 +97,14 @@ class bot_control_window(QtGui.QWidget):
     
     grid.setColumnStretch(2,1)
     
-    grid.addWidget(QtGui.QLabel("Command"), 0, 1)
-    grid.addWidget(self.command_edit, 0, 2)
-    grid.addWidget(QtGui.QLabel("GM"), 1, 1)
-    grid.addWidget(self.gm_edit, 1, 2)
+    row = 0
+    grid.addWidget(QtGui.QLabel("Command"), row, 1)
+    grid.addWidget(self.command_edit, row, 2)
+    row += 1
+    grid.addWidget(self.command_output, row, 2)
+    row += 1
+    grid.addWidget(QtGui.QLabel("GM"), row, 1)
+    grid.addWidget(self.gm_edit, row, 2)
     
     for i in range(0,10):
       name = QtGui.QLineEdit()
@@ -111,9 +116,10 @@ class bot_control_window(QtGui.QWidget):
       text.character_index = i
       text.returnPressed.connect(self.character_enter)
       self.character_slots.append((name, text))
-      grid.addWidget(QtGui.QLabel(str(legit_colors[i])), i+2, 0)
-      grid.addWidget(name, i+2, 1)
-      grid.addWidget(text, i+2, 2)
+      row += 1
+      grid.addWidget(QtGui.QLabel(str(legit_colors[i])), row, 0)
+      grid.addWidget(name, row, 1)
+      grid.addWidget(text, row, 2)
     
     self.setLayout(vbox)
     self.setGeometry(100,100,350,500)
@@ -122,12 +128,16 @@ class bot_control_window(QtGui.QWidget):
   
   def command_enter(self):
     cmd = str(self.command_edit.text())
+    self.command_edit.setText('')
     if cmd == "clear":
       self.send_queue.clear()
-    if cmd == "flood safety test":
+    elif cmd == "flood safety test":
       for i in range(0,20):
         self.channel_message("flood safety test")
-    self.command_edit.setText('')
+    
+    output = self.interpret_msg(cmd, None)
+    if (len(output) > 1):
+      self.command_output.setText(" = ".join(output))
     
   def gm_enter(self):
     #+chr(3)+"0,1" .. +chr(2)
@@ -202,50 +212,53 @@ class bot_control_window(QtGui.QWidget):
           self.channel_message(user+": '"+undef_match.group(1)+"' wasn't defined")
         pickle.dump(self.subs, open("remembered_substitutions", "wb"))
       else:
-        output = [bot_command]
-    
-        subbed = bot_command
-        if user in self.subs:
-          for key in self.subs[user]:
-            subbed = subbed.replace(key, self.subs[user][key])
-      
-        if subbed != bot_command:
-          output.append(subbed)
-      
-        def roll_repl(match):
-          dice = (1 if (match.group(1) == "") else int(match.group(1)))
-          sides = int(match.group(2))
-          if (dice < 1):
-            return "0"
-          if (sides < 1):
-            return match.group(0)
-          if (dice > 30):
-            return "(more than 30 dice is too many)"
-          if (sides > 100000):
-            return "(more than 100000 sides is too many)"
-          return "("+"+".join([str(rand.randrange(1,sides+1)) for x in range(dice)])+")"
-      
-        rolled = re.sub(r"(\d*)[Dd](\d+)", roll_repl, subbed)
-        if rolled != subbed:
-          output.append(rolled)
-    
-        def arith_repl(match):
-          try:
-            return str(eval_arithmetic(match.group(0)))
-          except Exception as e:
-            if (str(e).find("eval_arithmetic failed") != -1):
-              print(str(e))
-            else:
-              raise e
-            return match.group(0)
-            
-        arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d)]", arith_repl, rolled)
-        if arithmeticked != rolled:
-          output.append(chr(2)+arithmeticked+chr(2))
-        
+        output = self.interpret_msg(bot_command, user)
         if (len(output) > 1):
           self.channel_message(user+": "+" = ".join(output))
         
+  def interpret_msg(self, msg, user):
+    output = [msg]
+  
+    subbed = msg
+    if user in self.subs:
+      for key in self.subs[user]:
+        subbed = subbed.replace(key, self.subs[user][key])
+  
+    if subbed != msg:
+      output.append(subbed)
+    
+    def roll_repl(match):
+      dice = (1 if (match.group(1) == "") else int(match.group(1)))
+      sides = int(match.group(2))
+      if (dice < 1):
+        return "0"
+      if (sides < 1):
+        return match.group(0)
+      if (dice > 30):
+        return "(more than 30 dice is too many)"
+      if (sides > 100000):
+        return "(more than 100000 sides is too many)"
+      return "("+"+".join([str(rand.randrange(1,sides+1)) for x in range(dice)])+")"
+  
+    rolled = re.sub(r"(\d*)[Dd](\d+)", roll_repl, subbed)
+    if rolled != subbed:
+      output.append(rolled)
+ 
+    def arith_repl(match):
+      try:
+        return str(eval_arithmetic(match.group(0)))
+      except Exception as e:
+        if (str(e).find("eval_arithmetic failed") != -1):
+          print(str(e))
+        else:
+          raise e
+        return match.group(0)
+            
+    arithmeticked = re.sub(r"[\d\-(][\s\d+\-*/()]*[\d)]", arith_repl, rolled)
+    if arithmeticked != rolled:
+      output.append(chr(2)+arithmeticked+chr(2))
+  
+    return output
         
 app = QtGui.QApplication(sys.argv)
 control_window = bot_control_window()
