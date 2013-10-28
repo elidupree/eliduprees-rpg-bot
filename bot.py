@@ -202,7 +202,7 @@ class bot_control_window(QtGui.QWidget):
     if (cmd == "PRIVMSG") and (info[2] == channel) and (msg[0] == "!"):
       self.do_command(msg[1:].strip(), user, channel)
     if (cmd == "PRIVMSG") and (info[2] == bot_nick):
-      self.do_command(msg.strip(), user, user)
+      self.do_command(msg[1:].strip() if (msg[0] == "!") else msg.strip(), user, user)
       
   def do_command(self, msg, user, target):
     indicator_prefix = (user+": " if target == channel else "")
